@@ -21,8 +21,8 @@ Create a virtualenv and activate it::
 
 Or on Windows cmd::
 
-	$ python -m venv venv
-	$ venv\Scripts\activate.bat
+	> python -m venv venv
+	> venv\Scripts\activate
 
 Install dependencies::
 
@@ -81,5 +81,5 @@ HTTP requests can be sent using the following format::
 	.then(console.log)
 
 URL is the URL of the endpoint you want to send the HTTP request to (e.g. https://127.0.0.1:5000/).
-METHOD is the request method (e.g. GET and POST).
+METHOD is the request method (e.g. GET or POST).
 Inside the body of the request, you may have to provide additional parameters if required.
