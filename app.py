@@ -105,7 +105,7 @@ def facebook_login_user():
     if 'access_token' in data:
         access_token = data['access_token']
     if 'email' in data:
-        body = data['body']
+        email = data['body']
 
     # access_token is required
     if required_field_is_null(data, 'access_token'):
