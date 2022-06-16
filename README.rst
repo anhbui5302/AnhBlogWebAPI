@@ -30,7 +30,7 @@ Install dependencies::
 
 You will also need a config.py file from one of the contributors. It contains the secret key as well as client ids and secrets needed for authentication using Google and Facebook. You will not be able to run without it.
 
-When you have the config.py file, create a new folder called "instance" and put the file inside it. The directory should look like "AnhBlogWebAPI/instance/config.py"
+When you have the config.py file, create a new folder called "instance" and put the file inside it. The path should look like "../AnhBlogWebAPI/instance/config.py"
 
 Run
 ---
@@ -60,4 +60,4 @@ Ignore the warning by your browser. This happens because the security certificat
 Usage
 -----
 
-For now, open the app.py file and browse through the various functions to see which endpoints are available as well as what you kind of request you can send to those endpoints.
+For now, open the app.py file and browse through the various functions to see which endpoints are available as well as what kind of request you can send to those endpoints.
