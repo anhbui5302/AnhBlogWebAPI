@@ -15,18 +15,46 @@ class User(UserMixin):
 
     def get_id(self):
         # Needed for flask_login's requirements
-        return self.email
+        return self.id
 
     @staticmethod
-    def get(email):
-        # Gets a user from db given email
+    def get(user_id):
+        # Gets a user from a db given its id
         db = get_db()
         user = db.execute(
-            "SELECT * FROM user WHERE email = ?", (email,)
+            "SELECT * FROM user WHERE id = ?", (user_id,)
         ).fetchone()
         if not user:
             return None
 
+        user = User(
+            id_=user[0], name=user[1], email=user[2], phone=user[3], occupation=user[4], is_gg=user[5], is_fb=user[6]
+        )
+        return user
+
+    @staticmethod
+    def get_gg_by_email(email):
+        # Gets a google user from a db given its email and type
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM user WHERE email = ? AND is_gg = 1", (email,)
+        ).fetchone()
+        if not user:
+            return None
+        user = User(
+            id_=user[0], name=user[1], email=user[2], phone=user[3], occupation=user[4], is_gg=user[5], is_fb=user[6]
+        )
+        return user
+
+    @staticmethod
+    def get_fb_by_email(email):
+        # Gets a facebook user from a db given its email and type
+        db = get_db()
+        user = db.execute(
+            "SELECT * FROM user WHERE email = ? AND is_fb = 1", (email,)
+        ).fetchone()
+        if not user:
+            return None
         user = User(
             id_=user[0], name=user[1], email=user[2], phone=user[3], occupation=user[4], is_gg=user[5], is_fb=user[6]
         )
@@ -54,12 +82,12 @@ class User(UserMixin):
         db.commit()
 
     @staticmethod
-    def google_info_valid(email):
+    def google_info_valid(user_id):
         # If name or occupation of user with the specified id is null then return False. Otherwise, return True.
         db = get_db()
 
         user = db.execute(
-            "SELECT * FROM user WHERE email = ? AND (name <> '') AND (occupation <> '')", (email,)
+            "SELECT * FROM user WHERE id = ? AND (name <> '') AND (occupation <> '')", (user_id,)
         ).fetchone()
 
         if user:
@@ -67,12 +95,12 @@ class User(UserMixin):
         return False
 
     @staticmethod
-    def facebook_info_valid(email):
+    def facebook_info_valid(user_id):
         # If name or phone of user with the specified id is null then return False. Otherwise, return True.
         db = get_db()
 
         user = db.execute(
-            "SELECT * FROM user WHERE email = ? AND (name <> '') AND (phone <> '')", (email,)
+            "SELECT * FROM user WHERE id = ? AND (name <> '') AND (phone <> '')", (user_id,)
         ).fetchone()
 
         if user:
