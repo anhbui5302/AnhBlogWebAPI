@@ -2,6 +2,7 @@
 # Python standard libraries
 import json
 import os
+from os.path import join, dirname
 
 import requests
 # Third-party libraries
@@ -14,6 +15,7 @@ from flask_login import (
     logout_user,
 )
 from oauthlib.oauth2 import WebApplicationClient
+from dotenv import load_dotenv
 # Internal imports
 from werkzeug.exceptions import abort, HTTPException
 
@@ -58,7 +60,9 @@ GOOGLE_DISCOVERY_URL = (
 FACEBOOK_DISCOVERY_URL = (
     "https://www.facebook.com/.well-known/openid-configuration"
 )
-
+# Load environment variables
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
 # Database setup
 # Run "flask init-db" to initialise db
 # Remember to change directory and activate venv
