@@ -12,7 +12,7 @@ Clone the repository::
 
 
 	$ git clone https://github.com/anhbui5302/AnhBlogWebAPI
-	$ cd flask
+	$ cd AnhBlogWebAPI
 
 Create a virtualenv and activate it::
 
