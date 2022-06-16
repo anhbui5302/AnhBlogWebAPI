@@ -3,8 +3,9 @@
 import json
 import os
 
+import requests
 # Third-party libraries
-from flask import Flask, redirect, request, url_for, jsonify
+from flask import Flask, request, url_for, jsonify
 from flask_login import (
     LoginManager,
     current_user,
@@ -13,14 +14,12 @@ from flask_login import (
     logout_user,
 )
 from oauthlib.oauth2 import WebApplicationClient
-import requests
-
 # Internal imports
 from werkzeug.exceptions import abort, HTTPException
 
 import db
-from user import User
 import post
+from user import User
 
 # App setup
 app = Flask(__name__, instance_relative_config=True)
@@ -56,6 +55,12 @@ FACEBOOK_CLIENT_SECRET = app.config.get('FACEBOOK_CLIENT_SECRET', None)
 GOOGLE_DISCOVERY_URL = (
     "https://accounts.google.com/.well-known/openid-configuration"
 )
+FACEBOOK_DISCOVERY_URL = (
+    "https://www.facebook.com/.well-known/openid-configuration"
+)
+
+# Access token to be compared with a user-supplied token in order to verify user
+access_token_to_compare = ''
 
 # Database setup
 # Run "flask init-db" to initialise db
@@ -73,20 +78,110 @@ def load_user(email):
     return User.get(email)
 
 
-def get_google_provider_cfg():
-    return requests.get(GOOGLE_DISCOVERY_URL).json()
+def get_provider_cfg(discovery_url):
+    return requests.get(discovery_url).json()
 
 
 @app.route("/facebook", methods=["GET"])
 def facebook_login():
-    facebook_authorization_endpoint = "https://www.facebook.com/v14.0/dialog/"
-    pass
+    facebook_provider_cfg = get_provider_cfg(FACEBOOK_DISCOVERY_URL)
+    facebook_authorization_endpoint = facebook_provider_cfg["authorization_endpoint"]
+
+    facebook_request_uri = facebook_client.prepare_request_uri(
+        facebook_authorization_endpoint,
+        redirect_uri=request.base_url + "/callback",
+        scope=["openid", "email"],
+    )
+    print(facebook_request_uri)
+    return jsonify({'URI': facebook_request_uri, 'message': "Access the URI below through a browser to login."}), 200
 
 
-@app.route("/login", methods=["GET"])
-def login():
+@app.route("/facebook/callback/loginuser", methods=["POST"])
+def facebook_login_user():
+    # Attempts to login the user, creating a user object and add it to the database if it is not in the database.
+    access_token, email = '', ''
+    data = request.get_json()
+    # Set values of attributes if they are provided in the request body
+    if 'access_token' in data:
+        access_token = data['access_token']
+    if 'email' in data:
+        body = data['body']
+
+    # access_token is required
+    if required_field_is_null(data, 'access_token'):
+        return abort(400, "access_token cannot be empty. Include an 'access_token'` field in the request body and "
+                          "make sure it is not empty.")
+    # email is required
+    if required_field_is_null(data, 'email'):
+        return abort(400, 'email cannot be empty. Include an `email` field in the request body and '
+                          'make sure it is not empty.')
+
+    # access_token provided must be the same as the server's saved access_token
+    if access_token != access_token_to_compare:
+        return abort(400, 'Value of access_token is not correct.')
+
+    # The temporary user object does not have an id. When it is put into the db, it will automatically get a unique one.
+    user = User(
+        id_='', name='', email=email, phone='', occupation='', is_gg=0, is_fb=1
+    )
+
+    # Doesn't exist? Add it to the database.
+    if not User.get(email):
+        User.create('', email, '', '', 0, 1)
+        user_created = True
+        print("Adding new user {} to database".format(user.email))
+    else:
+        user_created = False
+        print("User {} already in database".format(user.email))
+
+    # Begin user session by logging the user in
+    login_user(user)
+    if user_created:
+        return jsonify({'message': 'Registration successful. Created an account.'}), 201
+    return jsonify({'message': 'Login successful.'}), 200
+
+
+@app.route("/facebook/callback", methods=["GET"])
+def facebook_callback():
+    # Needed to modify global copy of access_token
+    global access_token_to_compare
+
+    args = request.args
+    # If user decides to cancel login.
+    if 'error' in args:
+        return jsonify({'message': 'User canceled Facebook login. Try again at /facebook'}), 200
+
+    # User proceeds with login.
+    code = request.args.get("code")
+    print(code)
+
+    # Prepare and send a request to get tokens
+    token_url, headers, body = facebook_client.prepare_token_request(
+        "https://graph.facebook.com/v14.0/oauth/access_token",
+        authorization_response=request.url,
+        redirect_url=request.base_url,
+        code=code
+    )
+    print("Token url: {}".format(token_url))
+    print("Headers: {}".format(headers))
+    print("body: {}".format(body))
+    token_response = requests.post(
+        token_url,
+        headers=headers,
+        data=body,
+        auth=(FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET),
+    )
+    print("Token response: {}".format(token_response.json()))
+    access_token_to_compare = token_response.json()['access_token']
+    print("Access_token: {}".format(access_token_to_compare))
+    return jsonify({'message': 'Use the code provided in the URI returned as a parameter for the next request.'}), 200
+
+
+@app.route
+@app.route("/google", methods=["GET"])
+def google_login():
     # Find out what URL to hit for Google login
-    google_provider_cfg = get_google_provider_cfg()
+    google_provider_cfg = get_provider_cfg(GOOGLE_DISCOVERY_URL)
     authorization_endpoint = google_provider_cfg["authorization_endpoint"]
     print(authorization_endpoint)
     # Use library to construct the request for Google login and provide
@@ -96,17 +191,18 @@ def login():
         redirect_uri=request.base_url + "/callback",
         scope=["openid", "email"],
     )
-    return redirect(request_uri)
+    print(request_uri)
+    return jsonify({'URI': request_uri, 'message': "Access the URI below through a browser to login."}), 200
 
 
-@app.route("/login/callback")
-def callback():
+@app.route("/google/callback")
+def google_callback():
     # Get authorization code Google sent back to you
     code = request.args.get("code")
 
     # Find out what URL to hit to get tokens that allow you to ask for
     # things on behalf of a user
-    google_provider_cfg = get_google_provider_cfg()
+    google_provider_cfg = get_provider_cfg(GOOGLE_DISCOVERY_URL)
     token_endpoint = google_provider_cfg["token_endpoint"]
 
     # Prepare and send a request to get tokens
@@ -116,26 +212,31 @@ def callback():
         redirect_url=request.base_url,
         code=code
     )
+    print("Token url: {}".format(token_url))
     token_response = requests.post(
         token_url,
         headers=headers,
         data=body,
         auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
     )
-
+    print("Token response: {}".format(token_response.json()))
     # Parse the tokens
     google_client.parse_request_body_response(json.dumps(token_response.json()))
-
+    print(google_client.parse_request_body_response(json.dumps(token_response.json())))
     # Now that you have tokens, let's find and hit the URL
     # from Google that gives you the user's profile information,
     # including their Google profile image and email
     userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
     uri, headers, body = google_client.add_token(userinfo_endpoint)
+    #print("URI: {}".format(uri))
+    #print("headers: {}".format(headers))
+    #print("body: {}".format(body))
     userinfo_response = requests.get(uri, headers=headers, data=body)
 
     # You want to make sure their email is verified.
     # The user authenticated with Google, authorized your
     # app, and now you've verified their email through Google!
+    #print(userinfo_response.json())
     if userinfo_response.json().get("email_verified"):
         users_email = userinfo_response.json()["email"]
     else:
@@ -159,7 +260,6 @@ def callback():
     # Begin user session by logging the user in
     login_user(user)
 
-    # Send user back to homepage
     return jsonify({'message': 'Login sucessful'}), 200
 
 
