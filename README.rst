@@ -61,3 +61,25 @@ Usage
 -----
 
 For now, open the app.py file and browse through the various functions to see which endpoints are available as well as what kind of request you can send to those endpoints.
+
+For the time being, it only possible to send HTTP requests using Chrome's Web Developer Tool. To access it, while Chrome is open, press f12 or Ctrl+Shift+I and then click on the Console tab.
+
+HTTP requests can be sent using the following format::
+
+	fetch(URL, {
+	  method: METHOD,
+	  body: JSON.stringify({
+		variable1: 'variable_value1',
+		variable2: 'variable_value2',
+		variable3: 'variable_value2',
+	  }),
+	  headers: {
+		'Content-type': 'application/json; charset=UTF-8'
+	  }
+	})
+	.then(res => res.json())
+	.then(console.log)
+
+URL is the URL of the endpoint you want to send the HTTP request to (e.g. https://127.0.0.1:5000/).
+METHOD is the request method (e.g. GET and POST).
+Inside the body of the request, you may have to provide additional parameters if required.
