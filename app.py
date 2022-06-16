@@ -93,7 +93,6 @@ def facebook_login():
         redirect_uri=request.base_url + "/callback",
         scope=["email"],
     )
-    print(facebook_request_uri)
     return jsonify({'URI': facebook_request_uri, 'message': "Access the URI below through a browser to login."}), 200
 
 
@@ -106,7 +105,7 @@ def facebook_callback():
 
     # User proceeds with login.
     code = args.get("code")
-    print(code)
+
     # Prepare and send a request to get tokens
     token_url, headers, body = facebook_client.prepare_token_request(
         "https://graph.facebook.com/v14.0/oauth/access_token",
@@ -120,13 +119,12 @@ def facebook_callback():
         data=body,
         auth=(FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET),
     )
-    # print("Token response: {}".format(token_response.json()))
+
     facebook_client.parse_request_body_response(json.dumps(token_response.json()))
     # Get user info
     payload = {'fields': 'email'}
     uri, headers, body = facebook_client.add_token("https://graph.facebook.com/me")
     userinfo_response = requests.get(uri, headers=headers, data=body, params=payload)
-    print(userinfo_response.json())
 
     # return error if email does not exist
     if userinfo_response.json().get("email"):
@@ -143,15 +141,11 @@ def facebook_callback():
     # Doesn't exist? Add it to the database.
     if not User.get_fb_by_email(users_email):
         User.create('', users_email, '', '', 0, 1)
-        print("Adding new Facebook user {} to database".format(user.email))
-    else:
-        print("Facebook user {} already in database".format(user.email))
 
     # Get the actual user object from the db
     user = User.get_fb_by_email(users_email)
     # Begin user session by logging the user in
     login_user(user)
-    print("ID of logged in Facebook user: {}".format(current_user.id))
     return jsonify({'message': 'Login sucessful'}), 200
 
 
@@ -160,7 +154,7 @@ def google_login():
     # Find out what URL to hit for Google login
     google_provider_cfg = get_provider_cfg(GOOGLE_DISCOVERY_URL)
     authorization_endpoint = google_provider_cfg["authorization_endpoint"]
-    print(authorization_endpoint)
+
     # Use library to construct the request for Google login and provide
     # scopes that let you retrieve user's profile from Google
     request_uri = google_client.prepare_request_uri(
@@ -168,7 +162,7 @@ def google_login():
         redirect_uri=request.base_url + "/callback",
         scope=["openid", "email"],
     )
-    print(request_uri)
+
     return jsonify({'URI': request_uri, 'message': "Access the URI below through a browser to login."}), 200
 
 
@@ -193,17 +187,17 @@ def google_callback():
         redirect_url=request.base_url,
         code=code
     )
-    print("Token url: {}".format(token_url))
+
     token_response = requests.post(
         token_url,
         headers=headers,
         data=body,
         auth=(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET),
     )
-    print("Token response: {}".format(token_response.json()))
+
     # Parse the tokens
     google_client.parse_request_body_response(json.dumps(token_response.json()))
-    print(google_client.parse_request_body_response(json.dumps(token_response.json())))
+
     # Now that you have tokens, let's find and hit the URL
     # from Google that gives you the user's profile information,
     # including their Google profile image and email
@@ -231,15 +225,11 @@ def google_callback():
     # Doesn't exist? Add it to the database.
     if not User.get_gg_by_email(users_email):
         User.create('', users_email, '', '', 1, 0)
-        print("Adding new Google user {} to database".format(user.email))
-    else:
-        print("Google user {} already in database".format(user.email))
 
     # Get the actual user object from the db
     user = User.get_gg_by_email(users_email)
     # Begin user session by logging the user in
     login_user(user)
-    print("ID of logged in Google user: {}".format(current_user.id))
     return jsonify({'message': 'Login sucessful'}), 200
 
 
@@ -255,7 +245,6 @@ def valid_info_required(func):
     # Decorator to check if user has provided the correct info and denies them access otherwise.
     def wrapper(*args, **kwargs):
         if info_valid(current_user):
-            # print(info_valid(current_user))
             result = func(*args, **kwargs)
             return result
         else:
