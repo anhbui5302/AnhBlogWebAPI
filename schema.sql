@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS like;
 CREATE TABLE user (
   id INTEGER PRIMARY KEY,
   name TEXT,
-  email TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
   phone INTEGER,
   occupation TEXT,
   is_gg INTEGER NOT NULL,
