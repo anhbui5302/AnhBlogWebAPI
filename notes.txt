@@ -1,0 +1,70 @@
+1Endpoints:
+
+LOGGING IN:
+Users need to be able to sign up.
+
+-> /signup
+
+Users need to be able to log in.
+
+-> /login
+
+Once the users have chosen either Google or Facebook, and all the authentication stuff is done:
+- For first time users (new registrations), they will be redirected to the info update page.
+- Otherwise, users will be redirected to the main page. 
+
+After entering info, if all the fields are filled, then users will be redirected to the main page. Otherwise, they will stay on the update info page until all info is filled.
+
+Users need to be able to update their info.
+
+-> /updateinfo
+
+
+POSTINGS:
+Three main pages:
+
+A home page, which shows all posts by all users.
+
+-> /
+
+A personal page, which shows all posts by a user.
+
+-> /<username>/
+
+A post detail page.
+
+-> /<username>/posts/<postid>
+
+Scenarios:
+
+'/':
+- A user that is not logged in enters the website's url:
+-> shows.
+
+- A user that is logged in enters the website's url:
+-> Redirects user to /.
+
+
+'/login':
+- A user decides to login with Facebook/Google:
+If authentication goes well:
+	If user has entered all their info:
+	-> Redirect user to /
+	Otherwise:
+	-> Redirect user to /updateinfo
+Otherwise:
+-> Redirects user back to /login
+
+- A user decides to sign up:
+-> Redirects user to /signup
+
+	
+'/signup':
+- A user decides to sign up with Facebook/Google:
+If authentication goes well:
+-> Redirect user to /updateinfo
+Otherwise:
+-> Redirects user back to /signup
+
+- A user decides to log in:
+-> Redirects user to /signup
