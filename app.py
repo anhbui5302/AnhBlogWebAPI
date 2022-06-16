@@ -59,9 +59,6 @@ FACEBOOK_DISCOVERY_URL = (
     "https://www.facebook.com/.well-known/openid-configuration"
 )
 
-# Access token to be compared with a user-supplied token in order to verify user
-access_token_to_compare = ''
-
 # Database setup
 # Run "flask init-db" to initialise db
 # Remember to change directory and activate venv
@@ -74,8 +71,8 @@ facebook_client = WebApplicationClient(FACEBOOK_CLIENT_ID)
 
 # Flask-Login helper to retrieve a user from our db
 @login_manager.user_loader
-def load_user(email):
-    return User.get(email)
+def load_user(user_id):
+    return User.get(user_id)
 
 
 def get_provider_cfg(discovery_url):
@@ -90,71 +87,22 @@ def facebook_login():
     facebook_request_uri = facebook_client.prepare_request_uri(
         facebook_authorization_endpoint,
         redirect_uri=request.base_url + "/callback",
-        scope=["openid", "email"],
+        scope=["email"],
     )
     print(facebook_request_uri)
     return jsonify({'URI': facebook_request_uri, 'message': "Access the URI below through a browser to login."}), 200
 
 
-@app.route("/facebook/callback/loginuser", methods=["POST"])
-def facebook_login_user():
-    # Attempts to login the user, creating a user object and add it to the database if it is not in the database.
-    access_token, email = '', ''
-    data = request.get_json()
-    # Set values of attributes if they are provided in the request body
-    if 'access_token' in data:
-        access_token = data['access_token']
-    if 'email' in data:
-        email = data['body']
-
-    # access_token is required
-    if required_field_is_null(data, 'access_token'):
-        return abort(400, "access_token cannot be empty. Include an 'access_token'` field in the request body and "
-                          "make sure it is not empty.")
-    # email is required
-    if required_field_is_null(data, 'email'):
-        return abort(400, 'email cannot be empty. Include an `email` field in the request body and '
-                          'make sure it is not empty.')
-
-    # access_token provided must be the same as the server's saved access_token
-    if access_token != access_token_to_compare:
-        return abort(400, 'Value of access_token is not correct.')
-
-    # The temporary user object does not have an id. When it is put into the db, it will automatically get a unique one.
-    user = User(
-        id_='', name='', email=email, phone='', occupation='', is_gg=0, is_fb=1
-    )
-
-    # Doesn't exist? Add it to the database.
-    if not User.get(email):
-        User.create('', email, '', '', 0, 1)
-        user_created = True
-        print("Adding new user {} to database".format(user.email))
-    else:
-        user_created = False
-        print("User {} already in database".format(user.email))
-
-    # Begin user session by logging the user in
-    login_user(user)
-    if user_created:
-        return jsonify({'message': 'Registration successful. Created an account.'}), 201
-    return jsonify({'message': 'Login successful.'}), 200
-
-
 @app.route("/facebook/callback", methods=["GET"])
 def facebook_callback():
-    # Needed to modify global copy of access_token
-    global access_token_to_compare
-
     args = request.args
     # If user decides to cancel login.
     if 'error' in args:
         return jsonify({'message': 'User canceled Facebook login. Try again at /facebook'}), 200
 
     # User proceeds with login.
-    code = request.args.get("code")
+    code = args.get("code")
     print(code)
-
     # Prepare and send a request to get tokens
     token_url, headers, body = facebook_client.prepare_token_request(
         "https://graph.facebook.com/v14.0/oauth/access_token",
@@ -162,22 +110,47 @@ def facebook_callback():
         redirect_url=request.base_url,
         code=code
     )
-    print("Token url: {}".format(token_url))
-    print("Headers: {}".format(headers))
-    print("body: {}".format(body))
     token_response = requests.post(
         token_url,
         headers=headers,
         data=body,
         auth=(FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET),
     )
-    print("Token response: {}".format(token_response.json()))
-    access_token_to_compare = token_response.json()['access_token']
-    print("Access_token: {}".format(access_token_to_compare))
-    return jsonify({'message': 'Use the code provided in the URI returned as a parameter for the next request.'}), 200
+    # print("Token response: {}".format(token_response.json()))
+    facebook_client.parse_request_body_response(json.dumps(token_response.json()))
+    # Get user info
+    payload = {'fields': 'email'}
+    uri, headers, body = facebook_client.add_token("https://graph.facebook.com/me")
+    userinfo_response = requests.get(uri, headers=headers, data=body, params=payload)
+    print(userinfo_response.json())
+
+    # return error if email does not exist
+    if userinfo_response.json().get("email"):
+        users_email = userinfo_response.json()["email"]
+    else:
+        return jsonify({'message': "User email not available. Login using another account with a valid email "
+                                   "adddress"}), 400
+
+    # The temporary user object does not have an id. When it is put into the db, it will automatically get a unique one.
+    user = User(
+        id_='', name='', email=users_email, phone='', occupation='', is_gg=0, is_fb=1
+    )
+
+    # Doesn't exist? Add it to the database.
+    if not User.get_fb_by_email(users_email):
+        User.create('', users_email, '', '', 0, 1)
+        print("Adding new Facebook user {} to database".format(user.email))
+    else:
+        print("Facebook user {} already in database".format(user.email))
+
+    # Get the actual user object from the db
+    user = User.get_fb_by_email(users_email)
+    # Begin user session by logging the user in
+    login_user(user)
+    print("ID of logged in Facebook user: {}".format(current_user.id))
+    return jsonify({'message': 'Login sucessful'}), 200
 
 
-@app.route
 @app.route("/google", methods=["GET"])
 def google_login():
     # Find out what URL to hit for Google login
@@ -197,8 +170,12 @@ def google_login():
 
 @app.route("/google/callback")
 def google_callback():
+    args = request.args
+    # If the authorization endpoint responds with an error
+    if 'error' in args:
+        return jsonify({'message': 'User canceled Facebook login. Try again at /facebook'}), 200
     # Get authorization code Google sent back to you
-    code = request.args.get("code")
+    code = args.get("code")
 
     # Find out what URL to hit to get tokens that allow you to ask for
     # things on behalf of a user
@@ -228,19 +205,16 @@ def google_callback():
     # including their Google profile image and email
     userinfo_endpoint = google_provider_cfg["userinfo_endpoint"]
     uri, headers, body = google_client.add_token(userinfo_endpoint)
-    #print("URI: {}".format(uri))
-    #print("headers: {}".format(headers))
-    #print("body: {}".format(body))
+
     userinfo_response = requests.get(uri, headers=headers, data=body)
 
     # You want to make sure their email is verified.
     # The user authenticated with Google, authorized your
     # app, and now you've verified their email through Google!
-    #print(userinfo_response.json())
     if userinfo_response.json().get("email_verified"):
         users_email = userinfo_response.json()["email"]
     else:
-        return "User email not available or not verified by Google.", 400
+        return jsonify({'message': "User email not available or not verified by Google."}), 400
 
     # Create a user in your db with the information provided
     # by Google
@@ -251,23 +225,24 @@ def google_callback():
     )
 
     # Doesn't exist? Add it to the database.
-    if not User.get(users_email):
+    if not User.get_gg_by_email(users_email):
         User.create('', users_email, '', '', 1, 0)
-        print("Adding new user {} to database".format(user.email))
+        print("Adding new Google user {} to database".format(user.email))
     else:
-        print("User {} already in database".format(user.email))
+        print("Google user {} already in database".format(user.email))
 
+    # Get the actual user object from the db
+    user = User.get_gg_by_email(users_email)
     # Begin user session by logging the user in
     login_user(user)
-
+    print("ID of logged in Google user: {}".format(current_user.id))
     return jsonify({'message': 'Login sucessful'}), 200
 
 
 def info_valid(user):
     # Check if the user has updated their info with valid data depending on account type
-    if (user.is_gg == 1 & User.google_info_valid(user.email)) | \
-            (user.is_fb == 1 & True):
-        # True is placeholder for fb's info valid function
+    if (user.is_gg == 1 and User.google_info_valid(user.id)) or \
+            (user.is_fb == 1 and User.facebook_info_valid(user.id)):
         return True
     return False
 
@@ -276,6 +251,7 @@ def valid_info_required(func):
     # Decorator to check if user has provided the correct info and denies them access otherwise.
     def wrapper(*args, **kwargs):
         if info_valid(current_user):
+            # print(info_valid(current_user))
             result = func(*args, **kwargs)
             return result
         else:
@@ -337,7 +313,7 @@ def logout():
 @login_required
 def get_info():
     # Shows the info of the authenticated user
-    user = User.get(current_user.email)
+    user = User.get(current_user.id)
     if not user:
         return abort(404, 'Uh oh. You don\'t seem to exist in the db? Something must be wrong')
     user_data = {'id': user.id, 'name': user.name, 'email': user.email, 'phone': user.phone,
@@ -348,13 +324,10 @@ def get_info():
 
 def required_field_is_null(data, field):
     # Check if required field to process request from the request body is null
-
     if field not in data:
         return True
-
     if data[field] == '':
         return True
-
     return False
 
 
@@ -379,14 +352,18 @@ def updateinfo():
         return abort(400, "Username cannot be empty. Include a `name` field in the request body")
 
     # occupation is required for google users
-    if (required_field_is_null(data, 'occupation')) & (current_user.is_gg == 1):
+    if (required_field_is_null(data, 'occupation')) and (current_user.is_gg == 1):
         # Handles body missing
         return abort(400, 'User occupation cannot be empty. Include a `occupation` field in the request body"')
 
     # phone is required for facebook users
-    if (required_field_is_null(data, 'phone')) & (current_user.is_fb == 1):
+    if (required_field_is_null(data, 'phone')) and (current_user.is_fb == 1):
         # Handles body missing
         return abort(400, 'User phone cannot be empty. Include a `phone` field in the request body"')
+
+    # If phone contains characters that are not decimal characters (i.e. numbers)
+    if not phone.isdecimal():
+        return abort(400, 'User phone can only contain numbers."')
 
     current_user.update(current_user.email, name, phone, occupation)
 
@@ -401,7 +378,7 @@ def format_likes_to_display(post_id):
     if len(users) == 0:
         return 'No one has liked this post yet.'
     elif len(users) == 1:
-        return '{} and {} liked this post.'.format(users[0][1], users[1][1])
+        return '{} liked this post.'.format(users[0][1])
     elif len(users) == 2:
         return '{} and {} liked this post.'.format(users[0][1], users[1][1])
     else:
