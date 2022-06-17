@@ -101,7 +101,7 @@ def facebook_callback():
     args = request.args
     # If user decides to cancel login.
     if 'error' in args:
-        return jsonify({'message': 'User canceled Facebook login. Try again at /facebook'}), 200
+        return abort(401, 'User canceled Facebook login. Try again at /facebook')
 
     # User proceeds with login.
     code = args.get("code")
@@ -171,7 +171,7 @@ def google_callback():
     args = request.args
     # If the authorization endpoint responds with an error
     if 'error' in args:
-        return jsonify({'message': 'User canceled Facebook login. Try again at /facebook'}), 200
+        return abort(401, 'User canceled Google login. Try again at /facebook')
     # Get authorization code Google sent back to you
     code = args.get("code")
 
@@ -212,7 +212,7 @@ def google_callback():
     if userinfo_response.json().get("email_verified"):
         users_email = userinfo_response.json()["email"]
     else:
-        return jsonify({'message': "User email not available or not verified by Google."}), 400
+        return abort(400, 'User email not available or not verified by Google.')
 
     # Create a user in your db with the information provided
     # by Google
@@ -291,7 +291,8 @@ def index():
              'author_name': post_[5], 'likes': likes_to_show}
         output.append(post_data)
 
-    return jsonify({'posts': output, 'next_page': '{}?page={}&perpage={}'.format(url_for("index"), page + 1, perpage)})
+    return jsonify({'posts': output,
+                    'next_page': '{}?page={}&perpage={}'.format(url_for("index"), page + 1, perpage)}), 200
 
 
 @app.route("/logout", methods=["GET"])
@@ -312,7 +313,7 @@ def get_info():
     user_data = {'id': user.id, 'name': user.name, 'email': user.email, 'phone': user.phone,
                  'occupation': user.occupation, 'is_gg': user.is_gg, 'is_fb': user.is_fb}
 
-    return jsonify(user_data)
+    return jsonify(user_data), 200
 
 
 def required_field_is_null(data, field):
