@@ -193,6 +193,8 @@ fields below:
   if it has not existed already. Lastly, the user's ID is stored in the
   session to authenticate the user in other endpoints. 
 
+| 
+
 *URL Structure*
 
 https://127.0.0.1:5000/google/callback
@@ -203,7 +205,7 @@ GET
 
 *Sample Request*
 
-Redirected from Googfgin and request access::
+Redirected from Google login and request access::
 
 	fetch('https://127.0.0.1:5000/google/callback?code=4%2F0AX4XfWjk5Kgcak3aiSmx5TfDe0-j_bxVLv2jc3FZZBs5jTeE-5qJ5whhoVKOazaTmJoETw&scope=email+openid+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email&authuser=0&prompt=none', {
 	  method: 'GET',
@@ -221,8 +223,8 @@ All parameters are returned by the Google Authorization endpoint.
 - ``code`` (*String*) The authorization code.
 - ``scope`` (*String*) A string that determines the endpoints to which 
   the client has access.
-- ``authuser`` (*String*) A string that is determined by the endpoint 
-  using the n-th user already logged into Google.
+- ``authuser`` (*String*) A string that is determined by the n-th user 
+  already logged into Google being used by the authorization endpoint.
 - ``prompt`` (*String*) A string that is determined by whether the 
   user were shown the re-consent prompt or not.
 
@@ -267,7 +269,7 @@ GET
 
 *Sample Request*
 
-Get request for Google login::
+Get request for Facebook login::
 
 	fetch('https://127.0.0.1:5000/facebook', {
 	  method: 'GET',
@@ -345,7 +347,7 @@ Redirected from Facebook login and request access::
 
 *Parameters*
 
-All parameters are returned by the Google Authorization endpoint.
+All parameters are returned by the Facebook Authorization endpoint.
 
 - ``code`` (*String*) The authorization code.
 
@@ -467,9 +469,8 @@ This endpoint returns a JSON-encoded dictionary including
 fields below:
   
 - ``nextpage`` (*String*) The query needed to get to the next page.
-
-- ``posts`` (*List of"(*Posts*)) A list of Posts objects
-- ``Posts`` (*String*) A JSON-encoded dictionary containing: 
+- ``posts`` (*List of"(*post*)) A list of post objects
+- ``post`` (*String*) A JSON-encoded dictionary containing: 
 - ``author_id`` (*String*) The id of the author.
 - ``author_name`` (*String*) The name of the author.
 - ``body`` (*String*) The main text of the post.
@@ -532,7 +533,7 @@ GET
 
 *Sample Request*
 
-Example::
+Shows info of currently authenticated user::
 
 	fetch('https://127.0.0.1:5000/info', {
 	  method: 'GET',
@@ -595,7 +596,7 @@ PUT
 
 *Sample Request*
 
-Example::
+Updates info of currently authenticated user::
 
 	fetch('https://127.0.0.1:5000/updateinfo', {
 	  method: 'PUT',
@@ -654,7 +655,7 @@ POST
 
 *Sample Request*
 
-Example::
+Creates a new post::
 
 	fetch('https://127.0.0.1:5000/create', {
 	  method: 'POST',
@@ -711,9 +712,9 @@ GET
 
 *Sample Request*
 
-Shows all posts made by user with if of 7::
+Shows all posts made by user with id of 7::
 
-	fetch('https://127.0.0.1:5000/?page=2&perpage=3', {
+	fetch('https://127.0.0.1:5000/7/posts', {
 	  method: 'GET',
 	  headers: {
 		'Content-type': 'application/json; charset=UTF-8'
@@ -732,8 +733,8 @@ Shows all posts made by user with if of 7::
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
 
-- ``posts`` (*List of"(*Posts*)) A list of Posts objects
-- ``Posts`` (*String*) A JSON-encoded dictionary containing: 
+- ``posts`` (*List of"(*post*)) A list of post objects
+- ``post`` (*String*) A JSON-encoded dictionary containing: 
 - ``author_id`` (*String*) The id of the author.
 - ``author_name`` (*String*) The name of the author.
 - ``body`` (*String*) The main text of the post.
@@ -796,7 +797,7 @@ GET
 *Sample Request*
 
 Shows the details of post with id 1 made 
-by user with id 1::
+by a user with id 1::
 
 	fetch('https://127.0.0.1:5000/1/posts/1', {
 	  method: 'GET',
@@ -888,8 +889,7 @@ Unlikes a post of id 1 and author of id 1::
 
 *Parameters*
 
-- ``user_id`` (*String*) The id of the user whose posts are 
-  requested.
+- ``user_id`` (*String*) The id of the author
 - ``post_id`` (*String*) The id of the post.
 
 *Returns*
@@ -938,8 +938,6 @@ GET
 
 *Sample Request*
 
-Example:
-
 Shows all users who liked post of id 3 and author of id 1::
 
 	fetch('https://127.0.0.1:5000/1/posts/3/likes', {
@@ -953,15 +951,16 @@ Shows all users who liked post of id 3 and author of id 1::
 
 *Parameters*
 
-- ``user_id`` (*String*) The id of the user whose posts are 
-  requested.
+- ``user_id`` (*String*) The id of the author.
 - ``post_id`` (*String*) The id of the post.
 
 *Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
-  
+
+- ``users`` (*List of"(*user*)) A list of user objects
+- ``user`` (*String*) A JSON-encoded dictionary containing:  
 - ``email`` (*String*) The user's email.
 - ``id`` (*String*) The user's id
 - ``is_fb`` (*String*) Shows whether the user is a Facebook user.
