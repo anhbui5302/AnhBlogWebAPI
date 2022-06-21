@@ -26,7 +26,6 @@ from user import User
 # App setup
 app = Flask(__name__, instance_relative_config=True)
 # Used to cryptographically sign cookies. Needs to be kept secret in production.
-# Good secret_keys look like this: '54e25d8e90717cb2f61cb3617ca5cf1734d606caceedff64ed4d4b80b4e8af2e'
 # app.secret_key = os.environ.get("SECRET_KEY")
 # Good to know: https://stackoverflow.com/questions/640938/what-is-the-maximum-size-of-a-web-browsers-cookies-key
 app.config.from_mapping(
