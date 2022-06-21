@@ -1,9 +1,12 @@
 # Imports
 # Python standard libraries
+import datetime
 import json
 import os
 from os.path import join, dirname
+from functools import wraps
 
+import flask
 import requests
 # Third-party libraries
 from flask import Flask, request, url_for, jsonify
@@ -16,6 +19,7 @@ from flask_login import (
 )
 from oauthlib.oauth2 import WebApplicationClient
 from dotenv import load_dotenv
+import jwt
 # Internal imports
 from werkzeug.exceptions import abort, HTTPException
 
@@ -27,6 +31,7 @@ from user import User
 app = Flask(__name__, instance_relative_config=True)
 # Used to cryptographically sign cookies. Needs to be kept secret in production.
 # app.secret_key = os.environ.get("SECRET_KEY")
+# Use the following command to generate a good secret key: $ python -c 'import secrets; print(secrets.token_hex())'
 # Good to know: https://stackoverflow.com/questions/640938/what-is-the-maximum-size-of-a-web-browsers-cookies-key
 app.config.from_mapping(
     DATABASE=os.path.join(app.instance_path, 'anhblogwebapp.sqlite'),
@@ -130,7 +135,7 @@ def facebook_callback():
         users_email = userinfo_response.json()["email"]
     else:
         return jsonify({'message': "User email not available. Login using another account with a valid email "
-                                   "adddress"}), 400
+                                   "address"}), 400
 
     # The temporary user object does not have an id. When it is put into the db, it will automatically get a unique one.
     user = User(
@@ -145,7 +150,7 @@ def facebook_callback():
     user = User.get_fb_by_email(users_email)
     # Begin user session by logging the user in
     login_user(user)
-    return jsonify({'message': 'Login sucessful'}), 200
+    return jsonify({'message': 'Login successful'}), 200
 
 
 @app.route("/google", methods=["GET"])
@@ -227,9 +232,16 @@ def google_callback():
 
     # Get the actual user object from the db
     user = User.get_gg_by_email(users_email)
+    # Generate a token for the authenticated user. 'exp' is the time the token expires, set to be 60 minutes after
+    # creation.
+    token = jwt.encode({'email': user.email,
+                        'is_gg': user.is_gg,
+                        'is_fb': user.is_fb,
+                        'exp': datetime.datetime.utcnow() + datetime.timedelta(minutes=60)},
+                       app.config['SECRET_KEY'])
     # Begin user session by logging the user in
-    login_user(user)
-    return jsonify({'message': 'Login sucessful'}), 200
+    #login_user(user)
+    return jsonify({'message': 'Login successful', 'token': token}), 200
 
 
 def info_valid(user):
@@ -258,9 +270,27 @@ def valid_info_required(func):
     return wrapper
 
 
+def token_required(func):
+    # Decorator to check if the user has provided the correct token to authenticate themselves.
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        token = request.args.get('token')
+
+        if not token:
+            return jsonify({'message': 'Token is missing'}), 401
+
+        try:
+            data = jwt.decode(token, app.config['SECRET_KEY'])
+        # An exception is thrown when jwt cannot decode the token provided (i.e. it is not correct).
+        except:
+            return jsonify({'message': 'Token is invalid'}), 401
+        return func(*args, **kwargs)
+    return wrapper()
+
+
 @app.route("/", methods=["GET"])
-@login_required
-@valid_info_required
+@token_required
+#@valid_info_required
 def index():
     args = request.args
     # If args is not provided, generate some default values
@@ -344,12 +374,12 @@ def updateinfo():
         # Handles title missing
         return abort(400, "Username cannot be empty. Include a `name` field in the request body")
 
-    # occupation is required for google users
+    # occupation is required for Google users
     if (required_field_is_null(data, 'occupation')) and (current_user.is_gg == 1):
         # Handles body missing
         return abort(400, 'User occupation cannot be empty. Include a `occupation` field in the request body"')
 
-    # phone is required for facebook users
+    # phone is required for Facebook users
     if (required_field_is_null(data, 'phone')) and (current_user.is_fb == 1):
         # Handles body missing
         return abort(400, 'User phone cannot be empty. Include a `phone` field in the request body"')
