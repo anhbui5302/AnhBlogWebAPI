@@ -277,7 +277,7 @@ def format_posts_to_display(posts):
 
 def get_value(dict_, name, default):
     # Returns value of a key given its name and a dictionary. Default value given if it is not in the
-    # dictionary or its value in the dictionary is '' (i.e. empty)
+    # dictionary or its value in the dictionary is '' (i.e. empty).
     val = dict_.get(name)
     if val is None or val == '':
         return default
@@ -285,7 +285,7 @@ def get_value(dict_, name, default):
 
 
 def message_403():
-    # Returns the message to display when a 403 is thrown
+    # Returns the message to display when a 403 is thrown.
     return ("This account does not have the necessary info to access this page. Update your info by "
             "sending a POST request to /updateinfo. In the request body provide your name as 'name', "
             "phone number as 'phone' and occupation as 'occupation' in JSON format. Google users do "
@@ -302,12 +302,12 @@ def index(**kwargs):
     user_id, user_type = user_[0], user_[5]
     args = request.args
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     # If args are not provided, generate some default values.
-    # Also checks if the values contain only numbers
+    # Also checks if the values contain only numbers.
     page = (get_value(args, 'page', '1'))
     if page.isdecimal():
         page = int(page)
@@ -323,9 +323,9 @@ def index(**kwargs):
     start_index = (page - 1) * perpage
     end_index = page * perpage
 
-    # Shows all posts by all users
+    # Shows all posts by all users.
     posts = post.get_homepage()
-    # Get all posts in a page and format them for displaying
+    # Get all posts in a page and format them for displaying.
     final_posts = posts[start_index:end_index]
     output = format_posts_to_display(final_posts)
 
@@ -336,12 +336,12 @@ def index(**kwargs):
 @app.route("/info", methods=["GET"])
 @token_required
 def get_info(**kwargs):
-    # Shows the info of the authenticated user
+    # Shows the info of the authenticated user.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
@@ -356,36 +356,40 @@ def get_info(**kwargs):
 @app.route("/updateinfo", methods=["PATCH"])
 @token_required
 def updateinfo(**kwargs):
-    # Attempts to update authenticated user's info
+    # Attempts to update authenticated user's info.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
 
     user_id, user_type = user_[0], user_[5]
     data = request.get_json()
-
-    # name is always required
+    # name is always required.
     name = get_value(data, 'name', '')
+    occupation = get_value(data, 'occupation', '')
+    phone = get_value(data, 'phone', '')
     if name == '':
-        # Handles name missing
+        # Handles name missing.
         return abort(400, 'Username cannot be empty. Include a `name` field in the request body and '
                           'make sure it is not empty.')
 
-    # occupation is required for Google users
-    occupation = get_value(data, 'occupation', '')
-    if (occupation == '') and (user_type == 'Google'):
-        # Handles occupation missing
-        return abort(400, 'User occupation cannot be empty. Include a `occupation` field in the request body and '
-                          'make sure it is not empty.')
+    # occupation is required for Google users.
+    if user_type == 'Google':
+        if occupation == '':
+            # Handles occupation missing.
+            return abort(400, 'User occupation cannot be empty. Include a `occupation` field in the request body and '
+                              'make sure it is not empty.')
 
-    # phone is required for Facebook users
-    phone = get_value(data, 'phone', '')
+        if (not phone.isdecimal()) and (phone != ''):
+            # Handles phone not valid when it is not empty.
+            return abort(400, 'User phone can only contain numbers.')
+
+    # phone is required for Facebook users.
     if user_type == 'Facebook':
         if phone == '':
-            # Handles phone missing
+            # Handles phone missing.
             return abort(400, 'User phone cannot be empty. Include a `phone` field in the request body and '
                               'make sure it is not empty.')
         if not phone.isdecimal():
-            # Handles phone not valid
+            # Handles phone not valid.
             return abort(400, 'User phone can only contain numbers.')
     user.update(user_id, name, phone, occupation)
 
@@ -395,26 +399,26 @@ def updateinfo(**kwargs):
 @app.route('/create', methods=['POST'])
 @token_required
 def create_post(**kwargs):
-    # Attempts to create a new post using the provided info
+    # Attempts to create a new post using the provided info.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
     data = request.get_json()
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
-    # Title is required
+    # Title is required.
     title = get_value(data, 'title', '')
     if title == '':
-        # Handles title missing
+        # Handles title missing.
         return abort(400, 'Post title cannot be empty. Include a `title` field in the request body and '
                           'make sure it is not empty.')
-    # Body is required
+    # Body is required.
     body = get_value(data, 'body', '')
     if body == '':
-        # Handles body missing
+        # Handles body missing.
         return abort(400, 'Post body cannot be empty. Include a `body` field in the request body and '
                           'make sure it is not empty.')
 
@@ -426,12 +430,12 @@ def create_post(**kwargs):
 @app.route('/<author_id>/posts', methods=['GET'])
 @token_required
 def user_posts(author_id, **kwargs):
-    # Shows all posts made by a user
+    # Shows all posts made by a user.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
@@ -443,12 +447,12 @@ def user_posts(author_id, **kwargs):
 @app.route('/<author_id>/posts/<post_id>', methods=['GET'])
 @token_required
 def post_details(author_id, post_id, **kwargs):
-    # Shows details of a post
+    # Shows details of a post.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
@@ -465,19 +469,19 @@ def post_details(author_id, post_id, **kwargs):
 @app.route('/<author_id>/posts/<post_id>/like', methods=['POST'])
 @token_required
 def like_post(author_id, post_id, **kwargs):
-    # Make the authenticated user like a post
+    # Make the authenticated user like a post.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
     author_post_mismatch(author_id, post_)
 
-    # If user has already liked the post, returns 400
+    # If user has already liked the post, returns 400.
     if post.is_liked(user_id, post_id):
         abort(400, 'You have already liked the post!')
 
@@ -488,19 +492,19 @@ def like_post(author_id, post_id, **kwargs):
 @app.route('/<author_id>/posts/<post_id>/like', methods=['DELETE'])
 @token_required
 def unlike_post(author_id, post_id, **kwargs):
-    # Make the authenticated user unlike a post
+    # Make the authenticated user unlike a post.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
     author_post_mismatch(author_id, post_)
 
-    # If the authenticated user has not liked the post previously, returns 400
+    # If the authenticated user has not liked the post previously, returns 400.
     if not post.is_liked(user_id, post_id):
         abort(400, 'You have not liked the post!')
 
@@ -511,12 +515,12 @@ def unlike_post(author_id, post_id, **kwargs):
 @app.route('/<author_id>/posts/<post_id>/likes', methods=['GET'])
 @token_required
 def view_likes(author_id, post_id, **kwargs):
-    # View all users who liked a post
+    # View all users who liked a post.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
     user_id, user_type = user_[0], user_[5]
 
-    # Checks if user has valid info required
+    # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
@@ -537,10 +541,10 @@ def view_likes(author_id, post_id, **kwargs):
 @app.errorhandler(HTTPException)
 def handle_exception(e):
     # Return JSON instead of HTML for HTTP errors.
-    # start with the correct headers and status code from the error
+    # start with the correct headers and status code from the error.
     response = e.get_response()
 
-    # replace the body with JSON
+    # replace the body with JSON.
     response.data = json.dumps({
         "code": e.code,
         "name": e.name,
