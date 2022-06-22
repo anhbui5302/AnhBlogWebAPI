@@ -8,8 +8,7 @@ CREATE TABLE user (
   email TEXT NOT NULL,
   phone INTEGER,
   occupation TEXT,
-  is_gg INTEGER NOT NULL,
-  is_fb INTEGER NOT NULL
+  type TEXT NOT NULL
 );
 
 CREATE TABLE post (
