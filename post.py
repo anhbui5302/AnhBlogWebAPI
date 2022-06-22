@@ -88,7 +88,7 @@ def get_liked_users(post_id):
     # Get all users who liked a post
     db = get_db()
     users = db.execute(
-        'SELECT u.id, name, email, phone, occupation, is_gg, is_fb'
+        'SELECT u.id, name, email, phone, occupation, type'
         ' FROM like l JOIN user u ON l.user_id = u.id'
         ' WHERE l.post_id = ?'
         ' ORDER BY created DESC', (post_id,)
