@@ -1,5 +1,6 @@
 from db import get_db
 
+
 def get(user_id):
     # Gets a user from a db given its id
     db = get_db()
@@ -9,31 +10,22 @@ def get(user_id):
     return user
 
 
-def get_gg_by_email(email):
-    # Gets a Google user from a db given its email and type
+def get_by_email(email, type_):
+    # Gets a user from a db given its email and type
     db = get_db()
     user = db.execute(
-        "SELECT * FROM user WHERE email = ? AND is_gg = 1", (email,)
+        "SELECT * FROM user WHERE email = ? AND type = ?", (email, type_,)
     ).fetchone()
     return user
 
 
-def get_fb_by_email(email):
-    # Gets a facebook user from a db given its email and type
-    db = get_db()
-    user = db.execute(
-        "SELECT * FROM user WHERE email = ? AND is_fb = 1", (email,)
-    ).fetchone()
-    return user
-
-
-def create(name, email, phone, occupation, is_gg, is_fb):
+def create(name, email, phone, occupation, type_):
     # Creates a new user with the provided info and saves to db
     db = get_db()
     db.execute(
-        "INSERT INTO user (name, email, phone, occupation, is_gg, is_fb) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
-        (name, email, phone, occupation, is_gg, is_fb),
+        "INSERT INTO user (name, email, phone, occupation, type) "
+        "VALUES (?, ?, ?, ?, ?)",
+        (name, email, phone, occupation, type_),
     )
     db.commit()
 
@@ -48,26 +40,20 @@ def update(user_id, name, phone, occupation):
     db.commit()
 
 
-def google_info_valid(user_id):
-    # If name or occupation of user with the specified id is null then return False. Otherwise, return True.
+def info_valid(user_id, type_):
+    # Checks if the info of the user with id and type provided is valid. Returns True if it is, False otherwise.
     db = get_db()
-
-    user = db.execute(
-        "SELECT * FROM user WHERE id = ? AND (name <> '') AND (occupation <> '')", (user_id,)
-    ).fetchone()
-
-    if user:
-        return True
-    return False
-
-
-def facebook_info_valid(user_id):
-    # If name or phone of user with the specified id is null then return False. Otherwise, return True.
-    db = get_db()
-
-    user = db.execute(
-        "SELECT * FROM user WHERE id = ? AND (name <> '') AND (phone <> '')", (user_id,)
-    ).fetchone()
+    if type_ == 'Google':
+        user = db.execute(
+            "SELECT * FROM user WHERE id = ? AND (name <> '') AND (occupation <> '')", (user_id,)
+        ).fetchone()
+    elif type_ == 'Facebook':
+        user = db.execute(
+            "SELECT * FROM user WHERE id = ? AND (name <> '') AND (phone <> '')", (user_id,)
+        ).fetchone()
+    # Somehow type is neither 'Google' nor 'Facebook'
+    else:
+        user = None
 
     if user:
         return True

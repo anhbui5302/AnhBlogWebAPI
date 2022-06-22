@@ -119,10 +119,10 @@ def facebook_callback():
         return abort(400, 'User email not available. Login using another account with a valid email address.')
 
     # Create a user in the db if it doesn't exist.
-    if not user.get_fb_by_email(users_email):
-        user.create('', users_email, '', '', 0, 1)
+    if not user.get_by_email(users_email, 'Facebook'):
+        user.create('', users_email, '', '', 'Facebook')
 
-    user_ = user.get_fb_by_email(users_email)
+    user_ = user.get_by_email(users_email, 'Facebook')
     # Generate a token for the authenticated user. 'exp' is the time the token expires, set to be 60 minutes after
     # creation.
     token = jwt.encode({'id': user_[0],
@@ -194,10 +194,10 @@ def google_callback():
         return abort(400, 'User email not available or not verified by Google.')
 
     # Create a user in the db if it doesn't exist.
-    if not user.get_gg_by_email(users_email):
-        user.create('', users_email, '', '', 1, 0)
+    if not user.get_by_email(users_email, 'Google'):
+        user.create('', users_email, '', '', 'Google')
 
-    user_ = user.get_gg_by_email(users_email)
+    user_ = user.get_by_email(users_email, 'Google')
     # Generate a token for the authenticated user. 'exp' is the time the token expires, set to be 60 minutes after
     # creation.
     token = jwt.encode({'id': user_[0],
@@ -235,15 +235,6 @@ def token_required(func):
         return func(*args, **kwargs)
 
     return wrapper
-
-
-def info_valid(user_):
-    # Check if the user has updated their info with valid data depending on account type.
-    user_is_gg, user_is_fb, user_id = user_[5], user_[6], user_[0]
-    if (user_is_gg == 1 and user.google_info_valid(user_id)) or \
-            (user_is_fb == 1 and user.facebook_info_valid(user_id)):
-        return True
-    return False
 
 
 def author_post_mismatch(author_id, post_):
@@ -308,10 +299,11 @@ def index(**kwargs):
     # Shows the homepage, containing all posts by all users, which is paginated.
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
+    user_id, user_type = user_[0], user_[5]
     args = request.args
 
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     # If args are not provided, generate some default values.
@@ -347,14 +339,16 @@ def get_info(**kwargs):
     # Shows the info of the authenticated user
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
+    user_id, user_type = user_[0], user_[5]
+
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     if not user_:
         return abort(404, 'Uh oh. You don\'t seem to exist in the db? Something must be wrong.')
     output = {'id': user_[0], 'name': user_[1], 'email': user_[2], 'phone': user_[3],
-              'occupation': user_[4], 'is_gg': user_[5], 'is_fb': user_[6]}
+              'occupation': user_[4], 'type': user_[5]}
 
     return jsonify(output), 200
 
@@ -366,7 +360,7 @@ def updateinfo(**kwargs):
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
 
-    user_id, user_is_gg, user_is_fb = user_[0], user_[5], user_[6]
+    user_id, user_type = user_[0], user_[5]
     data = request.get_json()
 
     # name is always required
@@ -378,14 +372,14 @@ def updateinfo(**kwargs):
 
     # occupation is required for Google users
     occupation = get_value(data, 'occupation', '')
-    if (occupation == '') and (user_is_gg == 1):
+    if (occupation == '') and (user_type == 'Google'):
         # Handles occupation missing
         return abort(400, 'User occupation cannot be empty. Include a `occupation` field in the request body and '
                           'make sure it is not empty.')
 
     # phone is required for Facebook users
     phone = get_value(data, 'phone', '')
-    if user_is_fb == 1:
+    if user_type == 'Facebook':
         if phone == '':
             # Handles phone missing
             return abort(400, 'User phone cannot be empty. Include a `phone` field in the request body and '
@@ -404,11 +398,11 @@ def create_post(**kwargs):
     # Attempts to create a new post using the provided info
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
-    user_id = user_[0]
+    user_id, user_type = user_[0], user_[5]
     data = request.get_json()
 
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     # Title is required
@@ -435,9 +429,10 @@ def user_posts(author_id, **kwargs):
     # Shows all posts made by a user
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
+    user_id, user_type = user_[0], user_[5]
 
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     posts = post.get_user_page(author_id)
@@ -451,9 +446,10 @@ def post_details(author_id, post_id, **kwargs):
     # Shows details of a post
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
+    user_id, user_type = user_[0], user_[5]
 
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
@@ -472,9 +468,10 @@ def like_post(author_id, post_id, **kwargs):
     # Make the authenticated user like a post
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
-    user_id = user_[0]
+    user_id, user_type = user_[0], user_[5]
+
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
@@ -494,9 +491,10 @@ def unlike_post(author_id, post_id, **kwargs):
     # Make the authenticated user unlike a post
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
-    user_id = user_[0]
+    user_id, user_type = user_[0], user_[5]
+
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
@@ -516,9 +514,10 @@ def view_likes(author_id, post_id, **kwargs):
     # View all users who liked a post
     user_data = kwargs.get('user_data')
     user_ = user.get(user_data.get('id'))
+    user_id, user_type = user_[0], user_[5]
 
     # Checks if user has valid info required
-    if not info_valid(user_):
+    if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
 
     post_ = post.get_post_details(post_id)
@@ -530,7 +529,7 @@ def view_likes(author_id, post_id, **kwargs):
 
     for user_ in users:
         user_data = {'id': user_[0], 'name': user_[1], 'email': user_[2], 'phone': user_[3],
-                     'occupation': user_[4], 'is_gg': user_[5], 'is_fb': user_[6]}
+                     'occupation': user_[4], 'type': user_[5]}
         output.append(user_data)
     return jsonify({'users': output}), 200
 
