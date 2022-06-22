@@ -72,12 +72,12 @@ class User(UserMixin):
         db.commit()
 
     @staticmethod
-    def update(email, name, phone, occupation):
+    def update(user_id, name, phone, occupation):
         # Update data of a user in the database with the new values
         db = get_db()
         db.execute(
-            "UPDATE user SET name = ?, phone = ?, occupation = ? WHERE email = ?",
-            (name, phone, occupation, email),
+            "UPDATE user SET name = ?, phone = ?, occupation = ? WHERE id = ?",
+            (name, phone, occupation, user_id),
         )
         db.commit()
 
