@@ -60,6 +60,8 @@ Afterwards, open a separate terminal and run the following in the same directory
 
 	> flask init-db
 
+Make sure that venv is activated.
+
 This will initialize the database file in the instance folder which 
 the app will use. It will also overwrite an existing database with a 
 new, clean one.
