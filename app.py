@@ -239,10 +239,12 @@ def token_required(func):
 
 def author_post_mismatch(author_id, post_):
     # Checks if a post belongs to an author.
+    if not user.get(author_id):
+        abort(404, 'Resource not found! The specified user does not exist.')
     author_id = int(author_id)
     if post_ is None:
         abort(404, 'Resource not found! The specified post does not exist.')
-    elif (author_id != post_[4]) or (post_ is None):
+    elif author_id != post_[4]:
         abort(404, 'Resource not found! The specified post does not belong to the specified user.')
 
 
@@ -438,6 +440,10 @@ def user_posts(author_id, **kwargs):
     # Checks if user has valid info required.
     if not user.info_valid(user_id, user_type):
         return abort(403, message_403())
+
+    # Checks if author exists.
+    if not user.get(author_id):
+        abort(404, 'Resource not found! The author specified does not exist!')
 
     posts = post.get_user_page(author_id)
     output = format_posts_to_display(posts)
