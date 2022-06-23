@@ -15,28 +15,6 @@ with open(os.path.join(os.path.dirname(__file__), 'data.sql'), 'rb') as f:
     _data_sql = f.read().decode('utf8')
 
 application = app
-# def create_test_app():
-#     # Creates and configure a test_app then returns it.
-#     app = Flask(__name__, instance_relative_config=True)
-#
-#     # Load the instance config, if it exists.
-#     app.config.from_pyfile('config.py', silent=True)
-#
-#     # Ensure the instance folder exists.
-#     try:
-#         os.makedirs(app.instance_path)
-#     except OSError:
-#         pass
-#
-#     # Load environment variables.
-#     dotenv_path = join(dirname(__file__), '.env')
-#     load_dotenv(dotenv_path)
-#     # Database setup
-#     # Run "flask init-db" to initialise db.
-#     # Remember to change directory and activate venv.
-#     db.init_app(app)
-#
-#     return app
 
 
 @pytest.fixture()
