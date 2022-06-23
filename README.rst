@@ -70,14 +70,55 @@ in a browser to log in using either Google or Facebook.
 Ignore the warning by your browser. This happens because the security 
 certificate is self-signed since the server is running on localhost.
 
+Test
+----
+
+To perform tests, in the terminal run the following::
+
+    $ pytest
+	
+Or test with coverage::
+
+	$ coverage run -m pytest
+	$ coverage report
+	$ coverage html
+
+Open htmlcov/index.html in a browser to view the coverage report.
+
+Currently tests cover almost 100% of all written code. Only the callback 
+routes which are redirected to after the user authenticates themselves
+through either Google or Facebook have not been covered by the tests. 
+However, the creation of a user based on the email address as well as 
+getting said user back from the database are tested separately.
+
 Usage
 -----
 
-To send HTTP requests, use Chrome's Web Developer Tool. To access it, 
-while Chrome is open, press f12 or Ctrl+Shift+I and then click on the 
-Console tab.
+Once the server is running, you can use any program that can send 
+HTTP requests to interact with it, such as: Chrome's Web Developer 
+Tool, curl, Postman, etc.
 
-HTTP requests can be sent using the following format::
+The URLs returned by the /google and /facebook endpoints need to be 
+accessed through a browser.
+
+Ensure that for all blog API endpoints, include 'Authorization' with 
+value 'Bearer TOKEN' in the header of your requests. 
+TOKEN is the token provided by the server after the user has successfully 
+authenticated themselves.
+
+For requests that require additional data to be passed through the body, 
+include 'Content-Type' with value 'application/json' in the header.
+
+Data included in the request body also has to be in json form, like so::
+
+	{
+		"var1":"value1",
+		"var2":"value2",
+		"var3":"value3",
+	}
+
+If you're using Chrome's Web Developer Tool, HTTP requests can be sent 
+through the console after pressing f12, using the following format::
 
 	fetch(URL, {
 	  method: METHOD,
@@ -88,15 +129,17 @@ HTTP requests can be sent using the following format::
 	  }),
 	  headers: {
 		'Content-type': 'application/json; charset=UTF-8'
+		'Authorization': 'Bearer TOKEN'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
 
 URL is the URL of the endpoint you want to send the HTTP request to 
-(e.g. https://127.0.0.1:5000/). METHOD is the request method 
-(e.g. GET or POST). Inside the body of the request, you may have 
-to provide additional parameters if required.
+(e.g. https://127.0.0.1:5000/). Query parameters are attached to the 
+end of the URL (e.g. https://127.0.0.1:5000/?page=2). METHOD is the 
+request method (e.g. GET or POST). Inside the body of the request, 
+you may have to provide additional data if required.
 
 Requests with GET/HEAD method cannot have a body so make sure to 
 remove them like so::
@@ -105,13 +148,11 @@ remove them like so::
 	  method: METHOD,
 	  headers: {
 		'Content-type': 'application/json; charset=UTF-8'
+		'Authorization': 'Bearer TOKEN'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
-	
-Alternatively, sending methods with GET method can also be done by 
-pasting the endpoint URL into the address bar and pressing "Enter".
 
 Endpoints
 ---------
@@ -122,21 +163,29 @@ User Authorization and Authentication
 /google
 """""""
 
-*Description*
+*- Description*
 
 The first step in the Google OAuth 2 login flow. It will figure out
 where Google's OAuth 2 Authorization endpoint is and then construct 
 the request for Google login.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/google
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+None
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Get request for Google login::
 
@@ -149,29 +198,28 @@ Get request for Google login::
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 None
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
   
 - ``URL`` (*String*) The URL the user access in the browser to log in 
   into their google account.
-
 - ``message`` (*String*) A message telling the user what to do 
   with the URL.
 
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  "URI": "https://accounts.google.com/o/oauth2/v2/auth?response_type=code&client_id=<client_id>&redirect_uri=https%3A%2F%2Flocalhost%3A5000%2Fgoogle%2Fcallback&scope=openid+email", 
 	  "message": "Access the URI below through a browser to log in."
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 404
@@ -180,12 +228,12 @@ fields below:
 /google/callback
 """"""""""""""""
 
-*Description*
+*- Description*
 
 | Once the user has accessed the URL provided by /google on a browser, 
   they will be authenticated and authorized on Google's end. Once the 
   user has logged in with Google and agreed to share their email with 
-  the api, Google then redirects to this endpoint and pass in arguments 
+  the API, Google then redirects to this endpoint and pass in arguments 
   which contain the authorization code.
 | The client then use the authorization code provided to exchange for 
   access tokens which can be used to obtain the email the client needs.
@@ -195,15 +243,23 @@ fields below:
 
 | 
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/google/callback
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+None
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Redirected from Google login and request access::
 
@@ -216,7 +272,7 @@ Redirected from Google login and request access::
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 All parameters are returned by the Google Authorization endpoint.
 
@@ -228,23 +284,26 @@ All parameters are returned by the Google Authorization endpoint.
 - ``prompt`` (*String*) A string that is determined by whether the 
   user were shown the re-consent prompt or not.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
   
 - ``message`` (*String*) A message telling the user that they 
   have logged in successfully.
+- ``token`` (*String*) A token the user can use to authenticate 
+  themselves.
 
 |
 
 Sample Response::
 
 	{
-	  "message": "Login successful."
+	  "message": "Login successful. Send the provided token as a bearer token in the header of your HTTP request to the API to authenticate yourself.", 
+	  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MSwiZXhwIjoxNjU2MDA1MjEwfQ.6bM0AQg2p9FkyAimUxFoplmWidSzkpOP1eWBBLgH2U8"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 400, 401, 404
@@ -253,21 +312,29 @@ Sample Response::
 /facebook
 """""""""
 
-*Description*
+*- Description*
 
 The first step in the Facebook OAuth 2 login flow. It will figure out
 where Facebook's OAuth 2 Authorization endpoint is and then construct 
 the request for Facebook login.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/facebook
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+None
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Get request for Facebook login::
 
@@ -280,29 +347,28 @@ Get request for Facebook login::
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 None
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
   
 - ``URL`` (*String*) The URL the user access in the browser to 
   log in into their google account.
-
 - ``message`` (*String*) A message telling the user what to 
   do with the URL.
 
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  "URI": "https://facebook.com/dialog/oauth/?response_type=code&client_id=<client_id>&redirect_uri=https%3A%2F%2Flocalhost%3A5000%2Ffacebook%2Fcallback&scope=email", 
 	  "message": "Access the URI below through a browser to log in."
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 404
@@ -311,12 +377,12 @@ fields below:
 /facebook/callback
 """"""""""""""""""
 
-*Description*
+*- Description*
 
 | Once the user has accessed the URL provided by /facebook on a browser, 
   they will be authenticated and authorized on Facebook's end. Once the 
   user has logged in with Facebook and agreed to share their email with 
-  the api, Facebook then redirects to this endpoint and pass in arguments 
+  the API, Facebook then redirects to this endpoint and pass in arguments 
   which contain the authorization code.
 | The client then use the authorization code provided to exchange for 
   access tokens which can be used to obtain the email the client needs.
@@ -324,15 +390,23 @@ fields below:
   if it has not existed already. Lastly, the user's ID is stored in the
   session to authenticate the user in other endpoints. 
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/facebook/callback
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+None
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Redirected from Facebook login and request access::
 
@@ -345,84 +419,35 @@ Redirected from Facebook login and request access::
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 All parameters are returned by the Facebook Authorization endpoint.
 
 - ``code`` (*String*) The authorization code.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
   
 - ``message`` (*String*) A message telling the user that they 
   have logged in successfully.
+- ``token`` (*String*) A token the user can use to authenticate 
+  themselves.
 
 |
 
 Sample Response::
 
 	{
-	  "message": "Login successful."
+	  "message": "Login successful. Send the provided token as a bearer token in the header of your HTTP request to the API to authenticate yourself.", 
+	  "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 400, 401, 404
-|
-
-/logout
-"""""""
-
-*Description*
-
-Logs the currently authenticated user out and requires them to log in again.
-
-*URL Structure*
-
-https://127.0.0.1:5000/logout
-
-*Method*
-
-GET
-
-*Sample Request*
-
-Logs the currently authenticated user out::
-
-	fetch('https://127.0.0.1:5000/logout', {
-	  method: 'GET',
-	  headers: {
-		'Content-type': 'application/json; charset=UTF-8'
-	  }
-	})
-	.then(res => res.json())
-	.then(console.log)	
-
-*Parameters*
-
-None
-
-*Returns*
-
-This endpoint returns a JSON-encoded dictionary including 
-fields below:
-  
-- ``message`` (*String*) A message telling the user that they 
-  have logged out successfully.
-
-*Sample Response*::
-
-	{
-	  "message": "Successfully logged out!"
-	}
-
-*Response Codes*
-
-| Success: 200
-| Error: 401
 |
 
 Blog Functionality
@@ -431,39 +456,48 @@ Blog Functionality
 /
 "
 
-*Description*
+*- Description*
 
 Shows a list containing all posts made by all users. The list 
 is paginated. By default, it shows 5 posts per page and starts 
 at page 1.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Shows page 2 of the list of all posts with 3 posts per page::
 
 	fetch('https://127.0.0.1:5000/?page=2&perpage=3', {
 	  method: 'GET',
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 - ``page`` (*String*) The page number to show.
 - ``perpage`` (*String*) The number of posts shown per page.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -478,7 +512,7 @@ fields below:
 - ``likes`` (*String*) Shows users who liked the post.
 - ``title`` (*String*) The title of the post.
 	
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  "next_page": "/?page=3&perpage=3", 
@@ -510,7 +544,7 @@ fields below:
 	  ]
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 401, 403
@@ -519,82 +553,98 @@ fields below:
 /info
 """""
 
-*Description*
+*- Description*
 
 Shows the currently authenticated user's info.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/info
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Shows info of currently authenticated user::
 
 	fetch('https://127.0.0.1:5000/info', {
 	  method: 'GET',
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
 None
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
   
 - ``email`` (*String*) The user's email.
 - ``id`` (*String*) The user's id
-- ``is_fb`` (*String*) Shows whether the user is a Facebook user.
-- ``is_gg`` (*String*) Shows whether the user is a Google user.
 - ``name`` (*String*) The user'sname.
 - ``occupation`` (*String*) The user's occupation.
 - ``phone`` (*String*) The user's phone number.
-	
-*Sample Response*::
+- ``type`` (*String*) The type of the user.
+*- Sample Response*::
 
 	{
 	  "email": "luckyjam0503@gmail.com", 
 	  "id": 3, 
-	  "is_fb": 0, 
-	  "is_gg": 1, 
 	  "name": "testname123", 
 	  "occupation": "asdfgh", 
 	  "phone": ""
+	  "type": "Google"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
-| Error: 401, 404
+| Error: 401, 403, 404
 |
 
 /updateinfo
 """""""""""
 
-*Description*
+*- Description*
 
 Updates the currently authenticated user's info with new values.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/updateinfo
 
-*Method*
+*- Method*
 
-PUT
+PATCH
 
-*Sample Request*
+*- Required Headers*
+
+'Content-type': 'application/json'
+
+*- Required Body Data*
+
+| ``name`` The new name of the user.
+| ``phone`` (for Facebook users) The new phone number of the user.
+| ``occupation`` (for Google users) The new occupation of the user.
+
+*- Sample Request*
 
 Updates info of currently authenticated user::
 
@@ -606,19 +656,18 @@ Updates info of currently authenticated user::
 		occupation: 'Typist'
 	  }),
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
 
-*Parameters*
+*- Parameters*
 
-- ``name`` (*String*) The new name of the user.
-- ``phone`` (*String*) The new phone number of the user.
-- ``occupation`` (*String*) The new occupation of the user.
+None
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -626,13 +675,13 @@ fields below:
 - ``message`` (*String*) A message telling the user that they 
   have updated their info successfully.
 	
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  message: "User info successfully updated!" 
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 400, 401
@@ -641,19 +690,29 @@ fields below:
 /create
 """""""
 
-*Description*
+*- Description*
 
 Creates a new post using the info provided.
 
-*URL Structure*
+*- URL Structure*
 
 https://127.0.0.1:5000/create
 
-*Method*
+*- Method*
 
 POST
 
-*Sample Request*
+*- Required Headers*
+
+| 'Authorization': 'Bearer TOKEN'
+| 'Content-type': 'application/json'
+
+*- Required Body Data*
+
+| ``title`` The title of the new post.
+| ``body`` The main text of the new post.
+
+*- Sample Request*
 
 Creates a new post::
 
@@ -664,18 +723,18 @@ Creates a new post::
 		body: 'NewPostBody'
 	  }),
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
 
-*Parameters*
+*- Parameters*
 
-- ``title`` (*String*) The title of the new post.
-- ``body`` (*String*) The main text of the new post.
+None
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -683,52 +742,61 @@ fields below:
 - ``message`` (*String*) A message telling the user that they 
   have successfully created a new post.
 	
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  message: "New post created!"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 201
 | Error: 400, 401, 403 
 |
 
-/<user_id>/posts
+/<author_id>/posts
 """"""""""""""""
 
-*Description*
+*- Description*
 
 Shows a list containing all posts made by a user.
 
-*URL Structure*
+*- URL Structure*
 
-https://127.0.0.1:5000/<user_id>/posts
+https://127.0.0.1:5000/<author_id>/posts
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Shows all posts made by user with id of 7::
 
 	fetch('https://127.0.0.1:5000/7/posts', {
 	  method: 'GET',
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
-- ``user_id`` (*String*) The id of the user whose posts are 
+- ``author_id`` (*String*) The id of the user whose posts are 
   requested.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -742,7 +810,7 @@ fields below:
 - ``likes`` (*String*) Shows users who liked the post.
 - ``title`` (*String*) The title of the post.
 	
-*Sample Response*::
+*- Sample Response*::
 
 	{ 
 	  "posts": [
@@ -773,28 +841,36 @@ fields below:
 	  ]
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
-| Error: 401, 403
+| Error: 401, 403, 404
 |
 
-/<user_id>/posts/<post_id>
+/<author_id>/posts/<post_id>
 """"""""""""""""""""""""""
 
-*Description*
+*- Description*
 
 Shows the details of a post.
 
-*URL Structure*
+*- URL Structure*
 
-https://127.0.0.1:5000/<user_id>/posts/<post_id>
+https://127.0.0.1:5000/<author_id>/posts/<post_id>
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Shows the details of post with id 1 made 
 by a user with id 1::
@@ -802,19 +878,20 @@ by a user with id 1::
 	fetch('https://127.0.0.1:5000/1/posts/1', {
 	  method: 'GET',
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)	
 
-*Parameters*
+*- Parameters*
 
-- ``user_id`` (*String*) The id of the user whose posts are 
+- ``author_id`` (*String*) The id of the user whose posts are 
   requested.
 - ``post_id`` (*String*) The id of the post.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -826,7 +903,7 @@ fields below:
 - ``likes`` (*String*) Shows users who liked the post.
 - ``title`` (*String*) The title of the post.
 	
-*Sample Response*::
+*- Sample Response*::
 
 	{
 	  "author_id": 1, 
@@ -837,29 +914,37 @@ fields below:
 	  "title": "Post1"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 401, 403, 404
 |
 
-/<user_id>/posts/<post_id>/like
+/<author_id>/posts/<post_id>/like
 """""""""""""""""""""""""""""""
 
-*Description*
+*- Description*
 
 Like or unlike a post given the author's id and the 
 post's id.
 
-*URL Structure*
+*- URL Structure*
 
-https://127.0.0.1:5000/<user_id>/posts/<post_id>/like
+https://127.0.0.1:5000/<author_id>/posts/<post_id>/like
 
-*Method*
+*- Method*
 
 POST, DELETE
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Likes a post of id 1 and author of id 1::
 
@@ -868,6 +953,7 @@ Likes a post of id 1 and author of id 1::
 	  body: JSON.stringify({
 	  }),
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
@@ -881,18 +967,19 @@ Unlikes a post of id 1 and author of id 1::
 	  body: JSON.stringify({
 	  }),
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
 
-*Parameters*
+*- Parameters*
 
-- ``user_id`` (*String*) The id of the author
+- ``author_id`` (*String*) The id of the author.
 - ``post_id`` (*String*) The id of the post.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -900,7 +987,7 @@ fields below:
 - ``message`` (*String*) A message telling the user that they 
   have successfully liked or unliked the post.
 	
-*Sample Response*
+*- Sample Response*
 
 Liking a post::
 
@@ -914,47 +1001,56 @@ Unliking a post::
 	  message: "Removed like from post!"
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200, 201
 | Error: 400, 401, 403, 404
 |
 
-/<user_id>/posts/<post_id>/likes
+/<author_id>/posts/<post_id>/likes
 """"""""""""""""""""""""""""""""
 
-*Description*
+*- Description*
 
 Shows all users who like a post given the post's id
 and the author's id.
 
-*URL Structure*
+*- URL Structure*
 
-https://127.0.0.1:5000/<user_id>/posts/<post_id>/likes
+https://127.0.0.1:5000/<author_id>/posts/<post_id>/likes
 
-*Method*
+*- Method*
 
 GET
 
-*Sample Request*
+*- Required Headers*
+
+'Authorization': 'Bearer TOKEN'
+
+*- Required Body Data*
+
+None
+
+*- Sample Request*
 
 Shows all users who liked post of id 3 and author of id 1::
 
 	fetch('https://127.0.0.1:5000/1/posts/3/likes', {
 	  method: 'GET',
 	  headers: {
+		'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6NywiZXhwIjoxNjU2MDA1Mjk3fQ.7wlaFhjpYJmU6p4ORrFi732LQCPHyl4qF_m_29zSrss',
 		'Content-type': 'application/json; charset=UTF-8'
 	  }
 	})
 	.then(res => res.json())
 	.then(console.log)
 
-*Parameters*
+*- Parameters*
 
-- ``user_id`` (*String*) The id of the author.
+- ``author_id`` (*String*) The id of the author.
 - ``post_id`` (*String*) The id of the post.
 
-*Returns*
+*- Returns*
 
 This endpoint returns a JSON-encoded dictionary including 
 fields below:
@@ -963,38 +1059,35 @@ fields below:
 - ``user`` (*String*) A JSON-encoded dictionary containing:  
 - ``email`` (*String*) The user's email.
 - ``id`` (*String*) The user's id
-- ``is_fb`` (*String*) Shows whether the user is a Facebook user.
-- ``is_gg`` (*String*) Shows whether the user is a Google user.
 - ``name`` (*String*) The user'sname.
 - ``occupation`` (*String*) The user's occupation.
 - ``phone`` (*String*) The user's phone number.
-	
-*Sample Response*::
+- ``type`` (*String*) The type of the user.
+
+*- Sample Response*::
 
 	{
 	  "users": [
 		{
 		  "email": "luckyjam53@gmail.com", 
 		  "id": 4, 
-		  "is_fb": 0, 
-		  "is_gg": 1, 
 		  "name": "me tired", 
 		  "occupation": "asdfgh", 
 		  "phone": 1234567890
+		  "type": "Google"
 		}, 
 		{
 		  "email": "testforwebapp1@gmail.com", 
 		  "id": 2, 
-		  "is_fb": 0, 
-		  "is_gg": 1, 
 		  "name": "testname", 
 		  "occupation": "asd", 
 		  "phone": ""
+		  "type": "Google"
 		}
 	  ]
 	}
 
-*Response Codes*
+*- Response Codes*
 
 | Success: 200
 | Error: 401, 403, 404
