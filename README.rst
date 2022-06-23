@@ -116,7 +116,7 @@ Data included in the request body also has to be in json form, like so::
 	{
 		"var1":"value1",
 		"var2":"value2",
-		"var3":"value3",
+		"var3":"value3"
 	}
 
 If you're using Chrome's Web Developer Tool, HTTP requests can be sent 
@@ -127,7 +127,7 @@ through the console after pressing f12, using the following format::
 	  body: JSON.stringify({
 		variable1: 'variable_value1',
 		variable2: 'variable_value2',
-		variable3: 'variable_value2',
+		variable3: 'variable_value2'
 	  }),
 	  headers: {
 		'Content-type': 'application/json; charset=UTF-8'
@@ -149,7 +149,7 @@ remove them like so::
 	fetch(URL, {
 	  method: METHOD,
 	  headers: {
-		'Content-type': 'application/json; charset=UTF-8'
+		'Content-type': 'application/json; charset=UTF-8',
 		'Authorization': 'Bearer TOKEN'
 	  }
 	})
