@@ -54,11 +54,11 @@ def insert_post(author_id, title, body):
 def is_liked(liker_id, post_id):
     # Returns True if there is a record of a user liking a post in the db
     db = get_db()
-    user = db.execute(
+    like_ = db.execute(
         "SELECT * FROM like WHERE post_id = ? AND user_id = ?", (post_id, liker_id)
     ).fetchone()
 
-    if user:
+    if like_:
         return True
     return False
 
